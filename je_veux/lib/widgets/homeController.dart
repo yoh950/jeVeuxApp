@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:je_veux/model/item.dart';
 import 'package:je_veux/widgets/donnees_vides.dart';
 import 'package:je_veux/model/databaseClient.dart';
+import 'package:je_veux/widgets/itemDetail.dart';
 
 class HomeController extends StatefulWidget {
   HomeController({Key key, this.title}) : super(key: key);
@@ -30,7 +31,7 @@ class _HomeControllerState extends State<HomeController> {
         title: Text(widget.title),
         actions: [
           TextButton(
-            onPressed: ajouter,
+            onPressed: (() => ajouter(null)),
             child: Text(
               "Ajouter",
               style: TextStyle(color: Colors.white),
@@ -46,12 +47,35 @@ class _HomeControllerState extends State<HomeController> {
                 Item item = items[i];
                 return ListTile(
                   title: Text(item.nom),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete),
+                    onPressed: () {
+                      DatabaseClient().delete(item.id, 'item').then((int) {
+                        print("L'int recupéré est : $int");
+                        recuperer();
+                      });
+                    },
+                  ),
+                  leading: IconButton(
+                    icon: Icon(Icons.edit),
+                    onPressed: (() => ajouter(item)),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (BuildContext buildcontext) {
+                          return ItemDetail(item);
+                        },
+                      ),
+                    );
+                  },
                 );
               }),
     );
   }
 
-  Future<Null> ajouter() async {
+  Future<Null> ajouter(Item item) async {
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -61,7 +85,8 @@ class _HomeControllerState extends State<HomeController> {
           content: TextField(
             decoration: InputDecoration(
               labelText: "Liste",
-              hintText: "ex: mes prochains jeux vidéos",
+              hintText:
+                  (item == null) ? "ex: mes prochains jeux vidéos" : item.nom,
             ),
             onChanged: (String str) {
               nouvelleListe = str;
@@ -76,10 +101,15 @@ class _HomeControllerState extends State<HomeController> {
             FlatButton(
               onPressed: () {
                 if (nouvelleListe != null) {
-                  Map<String, dynamic> map = {'nom': nouvelleListe};
-                  Item item = Item();
-                  item.fromMap(map);
-                  DatabaseClient().ajoutItem(item).then((i) => recuperer());
+                  if (item == null) {
+                    item = Item();
+                    Map<String, dynamic> map = {'nom': nouvelleListe};
+                    item.fromMap(map);
+                  } else {
+                    item.nom = nouvelleListe;
+                  }
+
+                  DatabaseClient().upsertItem(item).then((i) => recuperer());
                   nouvelleListe = null;
                 }
                 Navigator.pop(builtcontext);
